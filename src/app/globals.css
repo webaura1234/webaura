@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-olive: #1a2314;
+  --color-olive-soft: #2b3822;
+  --color-navy: #0a1628;
+  --color-cream: #f7f7dc;
+  --color-sand: #eae8c1;
+  --color-sand-dark: #d7d5ab;
+  --color-gold: #d4af37;
+  --color-whatsapp: #25d366;
+  --color-whatsapp-dark: #1ebe5a;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-syne), var(--font-jakarta), ui-sans-serif, sans-serif;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: #fff;
+  color: var(--color-navy);
+}
+
+@keyframes rim-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.rim-light {
+  animation: rim-blink 1.2s ease-in-out infinite;
+}
+.rim-light-alt {
+  animation: rim-blink 1.2s ease-in-out infinite 0.6s;
+}
+.is-spinning .rim-light,
+.is-spinning .rim-light-alt {
+  animation-duration: 0.25s;
+}
+
+@keyframes pointer-bob {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 3px); }
+}
+.pointer-idle {
+  animation: pointer-bob 1.6s ease-in-out infinite;
+}
+
+@keyframes winner-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.45; }
+}
+/* Finite: an endless SVG animation keeps repainting the wheel and drains battery. */
+.winner-glow {
+  animation: winner-pulse 1s ease-in-out 4;
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* ── Screen transitions: the leaving block fades down while the next one rises in ── */
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes screen-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-10px) scale(0.98); }
+}
+.screen-in { animation: screen-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.screen-out { animation: screen-out 0.25s ease-in both; pointer-events: none; }
+
+@keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-out { to { opacity: 0; transform: translateY(24px); } }
+.backdrop-in { animation: backdrop-in 0.25s ease-out both; }
+.backdrop-out { animation: backdrop-in 0.22s ease-in reverse both; pointer-events: none; }
+.sheet-out { animation: sheet-out 0.22s ease-in both; }
+
+/* ── Idle CTA: a ring pulses out from behind the button. The button itself stays put, so
+   its press scale works and its hit box never moves under a finger (or a test runner). ── */
+@keyframes cta-ring {
+  0% { transform: scale(1); opacity: 0.55; }
+  70%, 100% { transform: scale(1.08, 1.35); opacity: 0; }
+}
+.cta-pulse { position: relative; }
+.cta-pulse::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  background: var(--color-gold);
+  animation: cta-ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  pointer-events: none;
+}
+
+/* ── Win number: lands with a spring once the count-up finishes ── */
+@keyframes win-land {
+  0% { transform: scale(1); }
+  28% { transform: scale(1.22) rotate(-2deg); }
+  52% { transform: scale(0.93) rotate(0.6deg); }
+  72% { transform: scale(1.05); }
+  88% { transform: scale(0.99); }
+  100% { transform: scale(1); }
+}
+.win-number { display: inline-block; transform-origin: 50% 65%; }
+.win-land { animation: win-land 0.7s cubic-bezier(0.3, 0.7, 0.4, 1) both; }
+
+@keyframes halo-breathe {
+  0%, 100% { transform: scale(0.96); opacity: 0.85; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+.win-halo {
+  background: radial-gradient(closest-side, rgba(212, 175, 55, 0.4), rgba(234, 232, 193, 0.35) 55%, transparent);
+  animation: backdrop-in 0.9s ease-out both, halo-breathe 4s ease-in-out 0.9s infinite;
+}
+
+/* ── Ambient backdrop: drifting glows and rising motes, all transform/opacity only ── */
+.ambient-blob {
+  position: absolute;
+  width: 75vmax;
+  height: 75vmax;
+  border-radius: 50%;
+  will-change: transform;
+}
+.ambient-blob-a {
+  top: -38vmax; left: -30vmax;
+  background: radial-gradient(closest-side, rgba(212, 175, 55, 0.26), transparent);
+  animation: blob-a 26s ease-in-out infinite alternate;
+}
+.ambient-blob-b {
+  top: 5vh; right: -40vmax;
+  background: radial-gradient(closest-side, rgba(234, 232, 193, 0.85), transparent);
+  animation: blob-b 32s ease-in-out infinite alternate;
+}
+.ambient-blob-c {
+  bottom: -45vmax; left: 10vw;
+  background: radial-gradient(closest-side, rgba(26, 35, 20, 0.08), transparent);
+  animation: blob-c 38s ease-in-out infinite alternate;
+}
+@keyframes blob-a { to { transform: translate3d(18vw, 14vh, 0) scale(1.15); } }
+@keyframes blob-b { to { transform: translate3d(-22vw, 18vh, 0) scale(0.9); } }
+@keyframes blob-c { to { transform: translate3d(14vw, -12vh, 0) scale(1.2); } }
+
+.ambient-mote {
+  position: absolute;
+  bottom: -4vh;
+  border-radius: 9999px;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: mote-rise var(--dur) linear var(--delay) infinite;
+}
+@keyframes mote-rise {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: var(--o); }
+  80% { opacity: var(--o); }
+  100% { transform: translate3d(var(--drift), -112vh, 0); opacity: 0; }
+}
+
+.ambient-win {
+  opacity: 0;
+  background:
+    radial-gradient(70% 55% at 50% 72%, rgba(212, 175, 55, 0.22), transparent 70%),
+    linear-gradient(to bottom, transparent 30%, rgba(247, 247, 220, 0.75));
+  transition: opacity 1.2s ease-out;
+}
+[data-phase="done"] .ambient-win { opacity: 1; }
+/* Keep the GPU free for the wheel while it spins. */
+[data-phase="spinning"] :is(.ambient-blob, .ambient-mote) { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rim-light, .rim-light-alt, .pointer-idle, .winner-glow, .win-land { animation: none; }
+  .cta-pulse::before { display: none; }
+  .ambient-blob { animation: none; }
+  .ambient-mote { display: none; }
+  .win-halo { animation: none; }
+  .pop-in, .screen-in, .screen-out, .backdrop-in, .backdrop-out, .sheet-out { animation-duration: 0.01s; }
+}

@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#2330C9" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Spin &amp; Win · WebAura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Shrikhand&display=swap" rel="stylesheet" />
+<style>
+/* ─────────────────────────────────────────────────────────────
+   Palette — "Festival ticket booth"
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --ultramarine: #2330C9; /* stage backdrop */
+  --ink:         #120F3D; /* outlines, text on light */
+  --marigold:    #FFB21A; /* primary action, highlights */
+  --rani:        #FF3D8B; /* celebration */
+  --mint:        #3DE3B4; /* accent wedge / fresh pop */
+  --chalk:       #FFFFFF; /* text on dark */
+
+  --display: "Shrikhand", "Cooper Black", Georgia, serif;
+  --body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--ultramarine);
+  color: var(--chalk);
+  font-family: var(--body);
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; }
+
+/* Sunburst rays behind everything */
+.rays {
+  position: fixed;
+  left: 50%; top: 50%;
+  width: 150vmax; height: 150vmax;
+  margin: -75vmax 0 0 -75vmax;
+  background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.07) 0deg 7.5deg, transparent 7.5deg 15deg);
+  -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%);
+          mask: radial-gradient(circle, #000 20%, transparent 70%);
+  animation: rays-turn 120s linear infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+body[data-state="spinning"] .rays { animation-play-state: paused; }
+@keyframes rays-turn { to { transform: rotate(360deg); } }
+
+/* ─────────────────────────────────────────────────────────────
+   Layout
+   ───────────────────────────────────────────────────────────── */
+.stage {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "intro" "wheel" "controls";
+  justify-items: center;
+  gap: clamp(8px, 2vmin, 20px);
+  padding: max(18px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
+}
+.intro    { grid-area: intro; text-align: center; max-width: 34rem; }
+.wheel-area { grid-area: wheel; }
+.controls { grid-area: controls; width: 100%; max-width: 30rem; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+@media (orientation: landscape) and (min-width: 640px) {
+  .stage {
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr);
+    grid-template-rows: 1fr auto auto 1fr;
+    grid-template-areas: "wheel ." "wheel intro" "wheel controls" "wheel .";
+    column-gap: clamp(16px, 4vw, 64px);
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+  }
+  .intro { text-align: left; justify-self: start; }
+  .controls { align-items: flex-start; justify-self: start; }
+  .prizes { align-items: flex-start; }
+}
+
+.brand {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 800; font-size: 15px; letter-spacing: .01em; opacity: .9;
+}
+.brand-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--marigold);
+  box-shadow: 0 0 0 4px rgba(255,178,26,.25);
+}
+.headline {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(44px, 9vmin, 104px);
+  line-height: .95;
+  margin: 8px 0 6px;
+  color: var(--chalk);
+  text-shadow: 0 5px 0 var(--ink);
+}
+.headline .pop { color: var(--marigold); }
+.sub {
+  margin: 0;
+  font-size: clamp(15px, 2.2vmin, 20px);
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(255,255,255,.8);
+}
+.greet {
+  display: none;
+  font-family: var(--display);
+  font-size: clamp(30px, 5.5vmin, 60px);
+  line-height: 1;
+  margin: 6px 0 0;
+  text-shadow: 0 4px 0 var(--ink);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Wheel
+   ───────────────────────────────────────────────────────────── */
+.wheel-area {
+  width: 100%; height: 100%;
+  min-height: 0;
+  display: grid; place-items: center;
+  container-type: size;
+}
+.wheel {
+  position: relative;
+  width: min(100cqw, 92cqh);
+  aspect-ratio: 1;
+  margin-top: 4cqh; /* room for the pointer */
+}
+.wheel::before { /* ambient glow */
+  content: "";
+  position: absolute; inset: -9%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,178,26,.55) 0%, rgba(255,61,139,.35) 45%, transparent 70%);
+  animation: glow 3.2s ease-in-out infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+@keyframes glow {
+  0%, 100% { opacity: .55; transform: scale(.96); }
+  50%      { opacity: 1;   transform: scale(1.04); }
+}
+.rotor {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  will-change: transform;
+  filter: drop-shadow(0 14px 0 rgba(18,15,61,.55));
+}
+.rotor svg { display: block; width: 100%; height: 100%; }
+.w-num { font-family: var(--display); }
+.w-off { font-family: var(--body); font-weight: 800; }
+.win-flash { opacity: 0; }
+body[data-state="landed"] .win-flash { animation: win-flash .55s ease-in-out 3; }
+@keyframes win-flash { 0%, 100% { opacity: 0; } 50% { opacity: .75; } }
+
+.bulbs { position: absolute; inset: 0; pointer-events: none; }
+.bulb {
+  position: absolute;
+  width: 3.2%; height: 3.2%;
+  margin: -1.6% 0 0 -1.6%;
+  border-radius: 50%;
+  background: #FFE7A8;
+  box-shadow: 0 0 10px 3px rgba(255,210,110,.85);
+  animation: chase 1.4s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.14s);
+  will-change: opacity;
+}
+@keyframes chase { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+body[data-state="spinning"] .bulb { animation-duration: .45s; animation-delay: calc(var(--i) * -0.045s); }
+body[data-state="landed"] .bulb { animation: flash .28s steps(1) infinite; }
+@keyframes flash { 0% { opacity: 1; } 50% { opacity: .15; } }
+
+.hub {
+  position: absolute; left: 50%; top: 50%;
+  width: 19%; height: 19%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--ink);
+  border: .9cqmin solid var(--marigold);
+  box-shadow: inset 0 0 0 .6cqmin var(--ink), inset 0 0 0 1.1cqmin rgba(255,255,255,.18), 0 6px 0 rgba(18,15,61,.5);
+  display: grid; place-items: center;
+  color: var(--marigold);
+  font-family: var(--display);
+  font-size: 6.4cqmin;
+  line-height: 1;
+  padding-bottom: .6cqmin;
+}
+.hub small { display: block; font-family: var(--body); font-weight: 800; font-size: 1.9cqmin; color: var(--chalk); letter-spacing: .02em; margin-top: .4cqmin; text-align: center; }
+
+.pointer {
+  position: absolute; left: 50%; top: -6.5%;
+  width: 11.5%;
+  transform: translateX(-50%);
+  z-index: 2;
+  filter: drop-shadow(0 4px 0 rgba(18,15,61,.55));
+}
+.pointer-arm { transform-origin: 50% 21%; will-change: transform; }
+.pointer svg { display: block; width: 100%; }
+
+/* ─────────────────────────────────────────────────────────────
+   Controls
+   ───────────────────────────────────────────────────────────── */
+.prizes { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.prizes-label { margin: 0; font-size: 14px; font-weight: 700; color: rgba(255,255,255,.75); }
+.coins { display: flex; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.coin {
+  width: 50px; height: 50px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--marigold);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 17px;
+  box-shadow: inset 0 0 0 3px var(--ink), inset 0 0 0 6px rgba(255,255,255,.45), 0 3px 0 var(--ink);
+}
+
+.btn-big {
+  min-height: 76px;
+  width: 100%;
+  max-width: 26rem;
+  padding: 0 32px;
+  border-radius: 999px;
+  background: var(--marigold);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: clamp(28px, 4.4vmin, 40px);
+  line-height: 1;
+  border: 4px solid var(--ink);
+  box-shadow: 0 8px 0 var(--ink);
+  transition: transform .12s var(--ease-out), box-shadow .12s var(--ease-out), opacity .2s;
+}
+.btn-big.is-pressed { transform: translateY(6px) scale(.96); box-shadow: 0 2px 0 var(--ink); }
+.btn-big.press-launch { animation: press-launch .3s var(--ease-out); }
+@keyframes press-launch {
+  0%   { transform: none; box-shadow: 0 8px 0 var(--ink); }
+  40%  { transform: translateY(6px) scale(.92); box-shadow: 0 2px 0 var(--ink); }
+  100% { transform: none; box-shadow: 0 8px 0 var(--ink); }
+}
+.btn-big:disabled { opacity: .55; cursor: default; }
+#startBtn { animation: breathe 2.6s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.045); }
+}
+#startBtn.is-pressed { animation: none; }
+
+.fine { margin: 0; font-size: 13px; font-weight: 500; color: rgba(255,255,255,.7); text-align: center; }
+@media (orientation: landscape) and (min-width: 640px) { .fine { text-align: left; } }
+
+/* State-driven visibility */
+#spinBtn, .fine, .greet { display: none; }
+/* .playing = ready → spinning → landed → reveal; the wheel layout holds under the reveal wipe */
+body.playing :is(.headline, .sub, .prizes, #startBtn) { display: none; }
+body.playing :is(.greet, #spinBtn, .fine) { display: block; }
+
+/* ─────────────────────────────────────────────────────────────
+   Name sheet — a tear-off ticket
+   ───────────────────────────────────────────────────────────── */
+.sheet {
+  position: fixed; inset: 0;
+  z-index: 10;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: max(9vh, 24px) 18px 18px;
+  background: rgba(18,15,61,.62);
+  opacity: 0; visibility: hidden;
+  transition: opacity .3s, visibility 0s .3s;
+}
+body[data-state="name"] .sheet { opacity: 1; visibility: visible; transition: opacity .3s; }
+.ticket {
+  --notch: 16px;
+  position: relative;
+  width: 100%; max-width: 30rem;
+  padding: 28px 30px 24px;
+  background: var(--marigold);
+  color: var(--ink);
+  border-radius: 14px;
+  -webkit-mask: radial-gradient(circle var(--notch) at 0 62%, transparent 98%, #000) left / 51% 100% no-repeat,
+                radial-gradient(circle var(--notch) at 100% 62%, transparent 98%, #000) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle var(--notch) at 0 62%, transparent 98%, #000) left / 51% 100% no-repeat,
+                radial-gradient(circle var(--notch) at 100% 62%, transparent 98%, #000) right / 51% 100% no-repeat;
+  transform: translateY(24px) rotate(-1.5deg);
+  transition: transform .4s var(--ease-out);
+}
+body[data-state="name"] .ticket { transform: rotate(-1.5deg); }
+.ticket h2 {
+  margin: 0 0 4px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(28px, 5vmin, 40px);
+  line-height: 1.05;
+}
+.ticket p { margin: 0 0 18px; font-weight: 500; font-size: 15px; opacity: .8; }
+.ticket input {
+  width: 100%;
+  height: 64px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 3px solid var(--ink);
+  background: var(--chalk);
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 700;
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.ticket input::placeholder { color: rgba(18,15,61,.35); }
+.ticket input:focus { box-shadow: 0 0 0 4px rgba(18,15,61,.2); }
+.perf { margin: 20px -30px 16px; border-top: 3px dashed rgba(18,15,61,.35); }
+.ticket-actions { display: flex; gap: 12px; align-items: center; }
+.ticket-actions .go {
+  flex: 1;
+  min-height: 60px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--chalk);
+  font-weight: 800;
+  font-size: 20px;
+  transition: transform .12s var(--ease-out);
+}
+.ticket-actions .go:active { transform: scale(.96); }
+.ticket-actions .skip {
+  min-height: 60px; min-width: 88px;
+  padding: 0 14px;
+  font-weight: 700; font-size: 17px;
+  text-decoration: underline; text-underline-offset: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Win reveal
+   ───────────────────────────────────────────────────────────── */
+.reveal {
+  --cx: 50%; --cy: 50%;
+  position: fixed; inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  background: var(--rani);
+  color: var(--chalk);
+  display: flex; align-items: center; justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  clip-path: circle(0 at var(--cx) var(--cy));
+  visibility: hidden;
+  transition: clip-path .75s cubic-bezier(.65, 0, .35, 1), visibility 0s .75s;
+}
+body[data-state="reveal"] .reveal {
+  clip-path: circle(150vmax at var(--cx) var(--cy));
+  visibility: visible;
+  transition: clip-path .75s cubic-bezier(.65, 0, .35, 1);
+}
+.reveal .rays { position: absolute; background: repeating-conic-gradient(from 0deg, rgba(255,178,26,.22) 0deg 7.5deg, transparent 7.5deg 15deg); }
+.reveal canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.reveal-body { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 36rem; width: 100%; }
+.reveal-kicker { margin: 0; font-weight: 800; font-size: clamp(20px, 3.4vmin, 30px); }
+.reveal-num {
+  font-family: var(--display);
+  font-size: clamp(120px, 31vmin, 330px);
+  line-height: .9;
+  margin: 2vmin 0 0;
+  color: var(--chalk);
+  text-shadow: .035em .035em 0 var(--ink), .07em .07em 0 var(--marigold);
+  font-variant-numeric: tabular-nums;
+  transform-origin: 50% 60%;
+}
+.reveal-num.pop { animation: pop .5s var(--ease-out); }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.12) rotate(-2deg); } 100% { transform: scale(1); } }
+.reveal-off { margin: 1.5vmin 0 3vmin; font-weight: 800; font-size: clamp(18px, 3vmin, 28px); }
+.code-ticket {
+  --notch: 12px;
+  background: var(--chalk);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 14px 34px 16px;
+  -webkit-mask: radial-gradient(circle var(--notch) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
+                radial-gradient(circle var(--notch) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle var(--notch) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
+                radial-gradient(circle var(--notch) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+  transform: rotate(1.5deg);
+}
+.code-ticket small { display: block; font-size: 13px; font-weight: 700; opacity: .6; }
+.code-ticket strong { display: block; font-size: clamp(26px, 4.6vmin, 40px); font-weight: 800; letter-spacing: .12em; }
+.redeem { margin: 3vmin 0 3.5vmin; font-size: clamp(15px, 2.3vmin, 19px); font-weight: 700; opacity: .92; }
+.btn-done {
+  min-height: 64px; min-width: 200px;
+  padding: 0 40px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--chalk);
+  font-weight: 800;
+  font-size: 20px;
+  transition: transform .12s var(--ease-out);
+}
+.btn-done:active { transform: scale(.96); }
+
+/* Reveal content eases in after the circle wipe */
+.reveal-body > * { opacity: 0; transform: translateY(14px); transition: opacity .4s, transform .5s var(--ease-out); }
+body[data-state="reveal"] .reveal-body > * { opacity: 1; transform: none; }
+body[data-state="reveal"] .reveal-body > :nth-child(1) { transition-delay: .45s; }
+body[data-state="reveal"] .reveal-body > :nth-child(2) { transition-delay: .5s; }
+body[data-state="reveal"] .reveal-body > :nth-child(3) { transition-delay: 1.5s; }
+body[data-state="reveal"] .reveal-body > :nth-child(4) { transition-delay: 1.65s; }
+body[data-state="reveal"] .reveal-body > :nth-child(5) { transition-delay: 1.8s; }
+body[data-state="reveal"] .reveal-body > :nth-child(6) { transition-delay: 1.9s; }
+body[data-state="reveal"] .code-ticket { transform: rotate(1.5deg); }
+
+/* ─────────────────────────────────────────────────────────────
+   Reduced motion: same flow, no decorative motion
+   ───────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .rays, .wheel::before, .bulb, #startBtn { animation: none !important; }
+  .bulb { opacity: .8; }
+  body[data-state="landed"] .win-flash { animation: none; opacity: .5; }
+  .reveal, body[data-state="reveal"] .reveal { clip-path: none; transition: opacity .25s, visibility 0s; }
+  .reveal { opacity: 0; }
+  body[data-state="reveal"] .reveal { opacity: 1; }
+  .reveal-body > *, body[data-state="reveal"] .reveal-body > * { transition: none; transition-delay: 0s !important; opacity: 1; transform: none; }
+  body[data-state="reveal"] .code-ticket { transform: rotate(1.5deg); }
+  .reveal-num.pop { animation: none; }
+  .ticket, body[data-state="name"] .ticket { transition: none; transform: rotate(-1.5deg); }
+}
+</style>
+</head>
+<body data-state="idle">
+<div class="rays" aria-hidden="true"></div>
+
+<main class="stage">
+  <header class="intro">
+    <div class="brand"><span class="brand-dot"></span>WebAura</div>
+    <h1 class="headline">Spin to <span class="pop">save</span></h1>
+    <p class="sub">One free spin. Every spin wins a discount on your next website, app or brand project.</p>
+    <p class="greet" id="greet">Good luck!</p>
+  </header>
+
+  <section class="wheel-area">
+    <div class="wheel" id="wheel">
+      <div class="rotor" id="rotor"><svg id="wheelSvg" viewBox="0 0 500 500" role="img" aria-label="Prize wheel"></svg></div>
+      <div class="bulbs" id="bulbs" aria-hidden="true"></div>
+      <div class="hub" aria-hidden="true"><div>WA<small>WebAura</small></div></div>
+      <div class="pointer" aria-hidden="true">
+        <div class="pointer-arm" id="pointerArm">
+          <svg viewBox="0 0 60 84">
+            <path d="M30 80 L9 30 A22 22 0 1 1 51 30 Z" fill="#FFB21A" stroke="#120F3D" stroke-width="5" stroke-linejoin="round" />
+            <path d="M18 24 A13 13 0 0 1 30 12" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".7" />
+            <circle cx="30" cy="18" r="7" fill="#120F3D" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="controls">
+    <div class="prizes">
+      <p class="prizes-label">Every spin wins one of these</p>
+      <ul class="coins" id="coins"></ul>
+    </div>
+    <button type="button" class="btn-big" id="startBtn">Tap to play</button>
+    <button type="button" class="btn-big" id="spinBtn">Spin!</button>
+    <p class="fine" id="fine">Every spin wins 5, 10, 15 or 20% off.</p>
+  </footer>
+</main>
+
+<div class="sheet" id="nameSheet" role="dialog" aria-modal="true" aria-labelledby="nameTitle">
+  <form class="ticket" id="nameForm" autocomplete="off">
+    <h2 id="nameTitle">Hi! What's your name?</h2>
+    <p>First name is plenty. We'll put it on your win.</p>
+    <input id="nameInput" name="firstName" type="text" inputmode="text" enterkeyhint="go" maxlength="24" placeholder="First name" aria-label="First name" />
+    <div class="perf"></div>
+    <div class="ticket-actions">
+      <button type="submit" class="go">Let's spin</button>
+      <button type="button" class="skip" id="skipBtn">Skip</button>
+    </div>
+  </form>
+</div>
+
+<section class="reveal" id="reveal" aria-live="polite">
+  <div class="rays" aria-hidden="true"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+  <div class="reveal-body">
+    <p class="reveal-kicker" id="revealKicker">Nice one!</p>
+    <div class="reveal-num" id="revealNum">0%</div>
+    <p class="reveal-off">off your next WebAura project</p>
+    <div class="code-ticket"><small>Your code</small><strong id="revealCode">WA00-XXXX</strong></div>
+    <p class="redeem">Show this screen to redeem.</p>
+    <button type="button" class="btn-done" id="doneBtn">Done</button>
+  </div>
+</section>
+
+<script>
+"use strict";
+
+/* ═════════════════════════════════════════════════════════════
+   1. PRIZE CONFIG: the only place to edit the wheel or the odds
+   ═════════════════════════════════════════════════════════════ */
+
+const PALETTE = {
+  ultramarine: "#2330C9", ink: "#120F3D", marigold: "#FFB21A",
+  rani: "#FF3D8B", mint: "#3DE3B4", chalk: "#FFFFFF",
+};
+
+// Wheel wedges, clockwise from 12 o'clock.
+// real: true  = a prize the wheel can land on.
+// real: false = a decoy: drawn on the wheel but never chosen as a result.
+const SEGMENTS = [
+  { value: 5,  real: true,  fill: PALETTE.marigold, text: PALETTE.ink   },
+  { value: 30, real: false, fill: PALETTE.rani,     text: PALETTE.chalk },
+  { value: 10, real: true,  fill: PALETTE.mint,     text: PALETTE.ink   },
+  { value: 50, real: false, fill: PALETTE.chalk,    text: PALETTE.ink   },
+  { value: 15, real: true,  fill: PALETTE.rani,     text: PALETTE.chalk },
+  { value: 70, real: false, fill: PALETTE.marigold, text: PALETTE.ink   },
+  { value: 20, real: true,  fill: PALETTE.chalk,    text: PALETTE.ink   },
+  { value: 90, real: false, fill: PALETTE.mint,     text: PALETTE.ink   },
+];
+
+// Relative chance of each prize. Numbers are relative weights (these happen to total 100,
+// so they read as percentages). Only values of real segments are allowed here; the page
+// refuses to start if a weight points at a decoy or at a value that isn't on the wheel.
+const PRIZE_WEIGHTS = [
+  { value: 5,  weight: 40 },
+  { value: 10, weight: 30 },
+  { value: 15, weight: 20 },
+  { value: 20, weight: 10 },
+];
+
+// Motion and kiosk timings.
+const TIMING = {
+  accelSec: 0.45,          // ramp from rest to full speed
+  cruiseSec: 1.5,          // sustained full speed
+  decelSec: 2.8,           // long ease-out that builds suspense
+  settleSec: 0.75,         // spring back from the overshoot
+  extraTurns: [7, 9],      // full turns before landing (inclusive range)
+  overshootDeg: [3, 6],    // how far past the resting angle the wheel coasts before settling
+  edgeMarginDeg: 3,        // resting point always this far inside its wedge
+  tickKickDeg: 10,         // pointer flick per divider
+  reducedSpinSec: 1.4,     // prefers-reduced-motion: a plain ease-out spin
+  wedgeFlashMs: 1750,      // winning wedge pulses before the reveal
+  countUpMs: 1300,
+  idleWobbleDeg: 5,        // attract-loop sway of the wheel
+  idleWobbleSec: 6,
+  abandonResetMs: 60_000,  // back to the attract screen if a visitor walks off mid-flow
+  revealResetMs: 180_000,  // win screen clears itself after 3 minutes
+};
+
+const CODE_ALPHABET = "ACDEFGHJKMNPQRTUVWXY34679"; // no look-alikes (0/O, 1/I/L, 5/S, 8/B, 2/Z)
+
+
+/* ═════════════════════════════════════════════════════════════
+   2. WINNING LOGIC: choose the prize first
+   ═════════════════════════════════════════════════════════════ */
+
+const SEG_ANGLE = 360 / SEGMENTS.length;
+
+// PRIZE_WEIGHTS resolved to wedge indexes, validated once at startup.
+const PRIZE_POOL = PRIZE_WEIGHTS.map(({ value, weight }) => {
+  const matches = SEGMENTS.flatMap((s, i) => (s.real && s.value === value ? [i] : []));
+  if (matches.length !== 1) throw new Error(`PRIZE_WEIGHTS: ${value}% must match exactly one real segment`);
+  if (!(weight > 0)) throw new Error(`PRIZE_WEIGHTS: weight for ${value}% must be positive`);
+  return { value, weight, segmentIndex: matches[0] };
+});
+const TOTAL_WEIGHT = PRIZE_POOL.reduce((sum, p) => sum + p.weight, 0);
+
+/** Uniform float in [0, 1) from the browser's cryptographic RNG. */
+function secureRandom() {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0] / 4294967296;
+}
+
+/** Weighted pick from PRIZE_POOL. Decoys are not in the pool, so they can't be returned. */
+function pickPrize(rng = secureRandom) {
+  let roll = rng() * TOTAL_WEIGHT;
+  for (const prize of PRIZE_POOL) {
+    if (roll < prize.weight) return prize;
+    roll -= prize.weight;
+  }
+  return PRIZE_POOL[PRIZE_POOL.length - 1];
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+   3. ROTATION MATH: work backward from the chosen wedge
+   Angles are degrees clockwise. Wedge i covers [i·45°, (i+1)·45°) of
+   the wheel measured from 12 o'clock. Rotating the wheel clockwise by R
+   puts wheel-angle (−R mod 360) under the fixed top pointer.
+   ═════════════════════════════════════════════════════════════ */
+
+/** Index of the wedge under the pointer for a given wheel rotation. */
+function segmentUnderPointer(rotationDeg) {
+  const underPointer = ((-rotationDeg % 360) + 360) % 360;
+  return Math.floor(underPointer / SEG_ANGLE) % SEGMENTS.length;
+}
+
+/**
+ * Final resting rotation for a prize that has already been chosen.
+ * The overshoot carries the wheel further clockwise, which moves the pointer toward the
+ * wedge's starting edge, so that side keeps extra room; the spring's rebound on the other
+ * side stays under ~1.2°. The pointer never visibly crosses into a neighbouring wedge.
+ */
+function planSpin(startDeg, segmentIndex, rng = secureRandom, reduced = false) {
+  const overshoot = reduced ? 0 : lerp(TIMING.overshootDeg[0], TIMING.overshootDeg[1], rng());
+  const lo = segmentIndex * SEG_ANGLE + TIMING.edgeMarginDeg + overshoot;
+  const hi = (segmentIndex + 1) * SEG_ANGLE - TIMING.edgeMarginDeg;
+  const restPos = lerp(lo, hi, rng());
+
+  const [minTurns, maxTurns] = TIMING.extraTurns;
+  const turns = reduced ? 2 : minTurns + Math.floor(rng() * (maxTurns - minTurns + 1));
+  const restMod = (360 - restPos) % 360;
+  const target = Math.ceil(startDeg / 360) * 360 + restMod + turns * 360;
+
+  if (segmentUnderPointer(target) !== segmentIndex) throw new Error("planSpin: target misses its wedge");
+  return { start: startDeg, target, overshoot, segmentIndex };
+}
+
+/**
+ * Rotation over time for a plan: accelerate → cruise → cubic ease-out to target+overshoot
+ * → damped spring back to target. Speeds are matched at each phase boundary so the motion
+ * never jerks.
+ */
+function spinMotion(plan, reduced = false) {
+  const { start, target, overshoot } = plan;
+  if (reduced) {
+    const T = TIMING.reducedSpinSec;
+    return { duration: T, settleStart: T, at: (t) => start + (target - start) * easeOutCubic(Math.min(t / T, 1)) };
+  }
+  const tA = TIMING.accelSec, tB = TIMING.cruiseSec, tC = TIMING.decelSec, tD = TIMING.settleSec;
+  // Distance covered = vMax·(tA/2 + tB + tC/3): linear ramp, constant, cubic ease-out whose
+  // initial slope equals vMax.
+  const vMax = (target + overshoot - start) / (tA / 2 + tB + tC / 3);
+  const dA = (vMax * tA) / 2, dB = vMax * tB, dC = (vMax * tC) / 3;
+  const ZETA = 7, OMEGA = 13;
+  return {
+    duration: tA + tB + tC + tD,
+    settleStart: tA + tB + tC,
+    at(t) {
+      if (t <= 0) return start;
+      if (t < tA) return start + (vMax * t * t) / (2 * tA);
+      t -= tA;
+      if (t < tB) return start + dA + vMax * t;
+      t -= tB;
+      if (t < tC) return start + dA + dB + dC * easeOutCubic(t / tC);
+      t -= tC;
+      if (t < tD) return target + overshoot * Math.exp(-ZETA * t) * (Math.cos(OMEGA * t) + (ZETA / OMEGA) * Math.sin(OMEGA * t));
+      return target;
+    },
+  };
+}
+
+function lerp(a, b, u) { return a + (b - a) * u; }
+function easeOutCubic(u) { return 1 - Math.pow(1 - u, 3); }
+
+
+/* ═════════════════════════════════════════════════════════════
+   4. DEV SELF-TEST (console only; runs on localhost or with ?dev)
+   ═════════════════════════════════════════════════════════════ */
+
+const DEV = ["localhost", "127.0.0.1"].includes(location.hostname) || new URLSearchParams(location.search).has("dev");
+
+function runSelfTest(spins = 5000) {
+  const counts = Object.fromEntries(SEGMENTS.map((s) => [s.value, 0]));
+  let wrongWedge = 0;
+  for (let n = 0; n < spins; n++) {
+    const prize = pickPrize();
+    counts[SEGMENTS[prize.segmentIndex].value]++;
+    // Check where the wheel physically rests, including every frame of the overshoot and settle.
+    const plan = planSpin(secureRandom() * 720 - 360, prize.segmentIndex);
+    const motion = spinMotion(plan);
+    for (let k = 0; k <= 20; k++) {
+      const t = motion.settleStart + ((motion.duration - motion.settleStart) * k) / 20;
+      if (segmentUnderPointer(motion.at(t)) !== prize.segmentIndex) wrongWedge++;
+    }
+  }
+  const rows = SEGMENTS.map((s) => {
+    const p = PRIZE_POOL.find((x) => x.segmentIndex === SEGMENTS.indexOf(s));
+    return {
+      wedge: `${s.value}%`,
+      type: s.real ? "prize" : "decoy",
+      expected: p ? `${((p.weight / TOTAL_WEIGHT) * 100).toFixed(1)}%` : "0%",
+      observed: `${((counts[s.value] / spins) * 100).toFixed(1)}%`,
+      hits: counts[s.value],
+    };
+  });
+  const decoyHits = SEGMENTS.filter((s) => !s.real).reduce((sum, s) => sum + counts[s.value], 0);
+  console.groupCollapsed(`%cSpin & Win self-test: ${spins} spins`, "font-weight:bold");
+  console.table(rows);
+  console.assert(decoyHits === 0, `Decoy wedges were chosen ${decoyHits} times`);
+  console.assert(wrongWedge === 0, `Wheel came to rest outside the chosen wedge ${wrongWedge} times`);
+  console.log(decoyHits === 0 && wrongWedge === 0
+    ? "PASS: 30/50/70/90 never chosen; every landing stays inside its chosen wedge."
+    : "FAIL: see assertions above.");
+  console.groupEnd();
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+   5. UI
+   ═════════════════════════════════════════════════════════════ */
+
+const $ = (sel) => document.querySelector(sel);
+const reducedMotionQuery = matchMedia("(prefers-reduced-motion: reduce)");
+const reduced = () => reducedMotionQuery.matches;
+
+const rotorEl = $("#rotor");
+const pointerEl = $("#pointerArm");
+const wheelSvg = $("#wheelSvg");
+const nameInput = $("#nameInput");
+const startBtn = $("#startBtn");
+const spinBtn = $("#spinBtn");
+
+let state = "idle";
+let visitorName = "";
+let rotation = 0;
+let idleBase = 0;
+let idleClock = 0;
+let spin = null;
+const pointer = { angle: 0, vel: 0 };
+
+function buildWheel() {
+  const C = 250, R = 206, RIM = 246;
+  const polar = (deg, r) => {
+    const rad = (deg * Math.PI) / 180;
+    return [C + r * Math.sin(rad), C - r * Math.cos(rad)];
+  };
+  const wedge = (i, r) => {
+    const [x0, y0] = polar(i * SEG_ANGLE, r);
+    const [x1, y1] = polar((i + 1) * SEG_ANGLE, r);
+    return `M${C} ${C} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}Z`;
+  };
+  let svg = `<circle cx="${C}" cy="${C}" r="${RIM}" fill="${PALETTE.ink}"/>`;
+  svg += `<circle cx="${C}" cy="${C}" r="${RIM - 7}" fill="none" stroke="${PALETTE.marigold}" stroke-width="2" opacity=".45"/>`;
+  SEGMENTS.forEach((s, i) => {
+    svg += `<path d="${wedge(i, R)}" fill="${s.fill}" stroke="${PALETTE.ink}" stroke-width="4" stroke-linejoin="round"/>`;
+  });
+  svg += `<path id="winFlash" class="win-flash" d="" fill="#fff"/>`;
+  SEGMENTS.forEach((s, i) => {
+    const mid = i * SEG_ANGLE + SEG_ANGLE / 2;
+    const y = C - R * 0.68;
+    svg += `<g transform="rotate(${mid} ${C} ${C})" fill="${s.text}">` +
+      `<text class="w-num" x="${C}" y="${y}" text-anchor="middle" font-size="44">${s.value}%</text>` +
+      `<text class="w-off" x="${C}" y="${y + 24}" text-anchor="middle" font-size="18">off</text></g>`;
+  });
+  SEGMENTS.forEach((_, i) => {
+    const [x, y] = polar(i * SEG_ANGLE, R + 1);
+    svg += `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="6" fill="${PALETTE.chalk}" stroke="${PALETTE.ink}" stroke-width="3"/>`;
+  });
+  wheelSvg.innerHTML = svg;
+  buildWheel.wedge = wedge;
+
+  const bulbs = $("#bulbs");
+  const BULBS = 20;
+  for (let i = 0; i < BULBS; i++) {
+    const deg = (i * 360) / BULBS + 360 / BULBS / 2;
+    const [x, y] = polar(deg, (R + RIM) / 2 + 2);
+    const b = document.createElement("span");
+    b.className = "bulb";
+    b.style.cssText = `left:${(x / 5).toFixed(2)}%;top:${(y / 5).toFixed(2)}%;--i:${i}`;
+    bulbs.appendChild(b);
+  }
+
+  $("#coins").innerHTML = PRIZE_POOL.map((p) => `<li class="coin">${p.value}%</li>`).join("");
+  $("#fine").textContent = `Every spin wins ${formatList(PRIZE_POOL.map((p) => p.value))}% off.`;
+}
+
+function formatList(values) {
+  return values.length < 2 ? String(values[0]) : `${values.slice(0, -1).join(", ")} or ${values[values.length - 1]}`;
+}
+
+/* ── Animation loop: idle sway, spin, pointer spring ───────────── */
+
+let lastFrame = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+
+  if (state !== "reveal") {
+    if (spin) {
+      const t = (now - spin.t0) / 1000;
+      rotation = spin.motion.at(t);
+      const sector = Math.floor(rotation / SEG_ANGLE);
+      if (sector !== spin.lastSector) {
+        if (!reduced()) kickPointer(sector > spin.lastSector ? 1 : -1);
+        spin.lastSector = sector;
+      }
+      if (t >= spin.motion.duration) {
+        rotation = spin.plan.target;
+        const done = spin.onDone;
+        spin = null;
+        done();
+      }
+    } else if (!reduced() && (state === "idle" || state === "name" || state === "ready")) {
+      idleClock += dt;
+      rotation = idleBase + TIMING.idleWobbleDeg * Math.sin((idleClock * 2 * Math.PI) / TIMING.idleWobbleSec);
+    }
+
+    // Pointer: damped spring back to rest after each flick.
+    for (let i = 0; i < 2; i++) {
+      const h = dt / 2;
+      pointer.vel += (-900 * pointer.angle - 26 * pointer.vel) * h;
+      pointer.angle += pointer.vel * h;
+    }
+    rotorEl.style.transform = `rotate(${rotation.toFixed(3)}deg)`;
+    pointerEl.style.transform = `rotate(${pointer.angle.toFixed(2)}deg)`;
+  }
+  requestAnimationFrame(frame);
+}
+
+/** A peg hits the pointer: flick it against the direction of travel. */
+function kickPointer(direction) {
+  pointer.angle = -direction * (TIMING.tickKickDeg + (Math.random() * 3 - 1.5));
+  pointer.vel = 0;
+}
+
+/* ── Flow ──────────────────────────────────────────────────────── */
+
+function setState(next) {
+  state = next;
+  document.body.dataset.state = next;
+  document.body.classList.toggle("playing", ["ready", "spinning", "landed", "reveal"].includes(next));
+  armInactivityTimer();
+}
+
+function openNameSheet() {
+  setState("name");
+  nameInput.value = "";
+  setTimeout(() => nameInput.focus(), 120);
+}
+
+function confirmName(name) {
+  visitorName = cleanName(name);
+  $("#greet").textContent = visitorName ? `Good luck, ${visitorName}!` : "Good luck!";
+  nameInput.blur();
+  setState("ready");
+}
+
+function cleanName(raw) {
+  const first = raw.replace(/\s+/g, " ").trim().split(" ")[0] || "";
+  const trimmed = Array.from(first).slice(0, 16).join("");
+  return trimmed ? trimmed[0].toLocaleUpperCase() + trimmed.slice(1) : "";
+}
+
+function startSpin() {
+  if (state !== "ready") return;
+  setState("spinning");
+  spinBtn.disabled = true;
+  spinBtn.classList.remove("press-launch");
+  void spinBtn.offsetWidth;
+  spinBtn.classList.add("press-launch");
+
+  // Prize first, angle second.
+  const prize = pickPrize();
+  const plan = planSpin(rotation, prize.segmentIndex, secureRandom, reduced());
+
+  setTimeout(() => {
+    spin = {
+      plan,
+      motion: spinMotion(plan, reduced()),
+      t0: performance.now(),
+      lastSector: Math.floor(rotation / SEG_ANGLE),
+      onDone: () => onLanded(prize),
+    };
+  }, reduced() ? 0 : 170);
+}
+
+function onLanded(prize) {
+  document.getElementById("winFlash").setAttribute("d", buildWheel.wedge(prize.segmentIndex, 206));
+  setState("landed");
+  setTimeout(() => openReveal(prize), reduced() ? 900 : TIMING.wedgeFlashMs);
+}
+
+function openReveal(prize) {
+  const reveal = $("#reveal");
+  const rect = $("#wheel").getBoundingClientRect();
+  reveal.style.setProperty("--cx", `${rect.left + rect.width / 2}px`);
+  reveal.style.setProperty("--cy", `${rect.top + rect.height / 2}px`);
+
+  $("#revealKicker").textContent = visitorName ? `Nice one, ${visitorName}!` : "Nice one!";
+  $("#revealCode").textContent = redemptionCode(prize.value);
+  const num = $("#revealNum");
+  num.textContent = "0%";
+  num.classList.remove("pop");
+
+  setState("reveal");
+  if (reduced()) {
+    num.textContent = `${prize.value}%`;
+    return;
+  }
+  setTimeout(() => {
+    confetti.fire();
+    countUp(num, prize.value);
+  }, 450);
+}
+
+function countUp(el, target) {
+  const t0 = performance.now();
+  const step = (now) => {
+    if (state !== "reveal") return;
+    const u = Math.min(1, (now - t0) / TIMING.countUpMs);
+    el.textContent = `${Math.round(target * easeOutCubic(u))}%`;
+    if (u < 1) requestAnimationFrame(step);
+    else el.classList.add("pop");
+  };
+  requestAnimationFrame(step);
+}
+
+function redemptionCode(value) {
+  let suffix = "";
+  for (let i = 0; i < 4; i++) suffix += CODE_ALPHABET[Math.floor(secureRandom() * CODE_ALPHABET.length)];
+  return `WA${value}-${suffix}`;
+}
+
+function resetToIdle() {
+  spin = null;
+  confetti.stop();
+  visitorName = "";
+  nameInput.value = "";
+  nameInput.blur();
+  spinBtn.disabled = false;
+  spinBtn.classList.remove("press-launch");
+  document.getElementById("winFlash").setAttribute("d", "");
+  rotation = ((rotation % 360) + 360) % 360;
+  idleBase = rotation;
+  idleClock = 0;
+  setState("idle");
+}
+
+/* ── Kiosk housekeeping ────────────────────────────────────────── */
+
+let inactivityTimer = 0;
+function armInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  const ms = state === "name" || state === "ready" ? TIMING.abandonResetMs : state === "reveal" ? TIMING.revealResetMs : 0;
+  if (ms) inactivityTimer = setTimeout(resetToIdle, ms);
+}
+
+let wakeLock = null;
+async function keepScreenOn() {
+  try {
+    if ("wakeLock" in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  } catch { /* not supported or denied; the tablet's own display settings apply */ }
+}
+
+/* ── Confetti (canvas, no dependencies) ────────────────────────── */
+
+const confetti = (() => {
+  const canvas = $("#confetti");
+  const ctx = canvas.getContext("2d");
+  const colors = [PALETTE.marigold, PALETTE.mint, PALETTE.chalk, PALETTE.ink, "#FFD66B"];
+  let parts = [], raf = 0, last = 0, W = 0, H = 0;
+
+  function resize() {
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function burst(x, y, count, angleDeg, spreadDeg, minSpeed, maxSpeed) {
+    for (let i = 0; i < count; i++) {
+      const a = ((angleDeg + (Math.random() - 0.5) * spreadDeg) * Math.PI) / 180;
+      const v = lerp(minSpeed, maxSpeed, Math.random());
+      parts.push({
+        x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+        w: lerp(7, 14, Math.random()), h: lerp(10, 18, Math.random()),
+        rot: Math.random() * Math.PI, vr: lerp(-10, 10, Math.random()),
+        flip: Math.random() * Math.PI, vf: lerp(6, 14, Math.random()),
+        color: colors[(Math.random() * colors.length) | 0],
+        round: Math.random() < 0.3, life: 0, ttl: lerp(3, 4.6, Math.random()),
+      });
+    }
+  }
+  function tick(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    ctx.clearRect(0, 0, W, H);
+    parts = parts.filter((p) => p.life < p.ttl && p.y < H + 40);
+    for (const p of parts) {
+      p.life += dt;
+      p.vy += 1500 * dt;
+      p.vx *= 1 - 1.6 * dt;
+      p.vy *= 1 - 1.6 * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.rot += p.vr * dt; p.flip += p.vf * dt;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (p.ttl - p.life) * 2);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.scale(1, Math.cos(p.flip));
+      ctx.fillStyle = p.color;
+      if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill(); }
+      else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    raf = parts.length ? requestAnimationFrame(tick) : 0;
+  }
+  return {
+    fire() {
+      resize();
+      const power = Math.max(W, H);
+      burst(W / 2, H * 0.4, 120, -90, 360, power * 0.35, power * 1.1);
+      burst(-10, H * 0.95, 70, -60, 28, power * 1.2, power * 1.9);
+      burst(W + 10, H * 0.95, 70, -120, 28, power * 1.2, power * 1.9);
+      if (!raf) { last = performance.now(); raf = requestAnimationFrame(tick); }
+    },
+    stop() {
+      cancelAnimationFrame(raf);
+      raf = 0; parts = [];
+      ctx.clearRect(0, 0, W, H);
+    },
+  };
+})();
+
+/* ── Wiring ────────────────────────────────────────────────────── */
+
+function tactile(button) {
+  const on = () => button.classList.add("is-pressed");
+  const off = () => button.classList.remove("is-pressed");
+  button.addEventListener("pointerdown", on);
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) button.addEventListener(ev, off);
+}
+tactile(startBtn);
+tactile(spinBtn);
+
+startBtn.addEventListener("click", openNameSheet);
+spinBtn.addEventListener("click", startSpin);
+$("#nameForm").addEventListener("submit", (e) => { e.preventDefault(); confirmName(nameInput.value); });
+$("#skipBtn").addEventListener("click", () => confirmName(""));
+$("#doneBtn").addEventListener("click", resetToIdle);
+$("#nameSheet").addEventListener("click", (e) => { if (e.target.id === "nameSheet") resetToIdle(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && state === "name") resetToIdle(); });
+
+document.addEventListener("pointerdown", () => { keepScreenOn(); armInactivityTimer(); }, { passive: true });
+document.addEventListener("keydown", armInactivityTimer);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { wakeLock = null; keepScreenOn(); } });
+document.addEventListener("contextmenu", (e) => { if (e.target !== nameInput) e.preventDefault(); });
+
+buildWheel();
+requestAnimationFrame(frame);
+if (DEV) setTimeout(runSelfTest, 300);
+</script>
+</body>
+</html>
