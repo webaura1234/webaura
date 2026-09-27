@@ -1,10 +1,10 @@
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import { NO_SUPABASE } from "./tests/e2e/noSupabase";
 
 const PORT = 3210;
 // Set once in the main process; workers inherit it, so everyone shares one fresh DB per run.
 process.env.E2E_DB ??= path.resolve("tests", ".tmp", `e2e-${Date.now()}.db`);
-
 export default defineConfig({
   testDir: "tests/e2e",
   outputDir: "tests/.tmp/results",
@@ -21,7 +21,7 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { SQLITE_PATH: process.env.E2E_DB },
+    env: { ...NO_SUPABASE, SQLITE_PATH: process.env.E2E_DB },
   },
   projects: [
     { name: "api", testMatch: /api\.spec\.ts/ },

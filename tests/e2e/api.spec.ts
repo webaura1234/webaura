@@ -3,6 +3,7 @@ import path from "node:path";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { SEGMENTS, segmentIndexOf, segmentUnderPointer, type SpinResponse } from "../../src/lib/segments";
 import { insertRaw, query, randomIp, randomPhone, rowsForPhone } from "./helpers";
+import { NO_SUPABASE } from "./noSupabase";
 
 const TARGET_PCT: Record<string, number> = {
   pct_5: 30,
@@ -283,7 +284,7 @@ test("if the database is down, the spin fails visibly and no coupon is returned"
   // A path *inside a file* can never be created, simulating an unreachable database.
   const brokenDb = path.join(process.cwd(), "package.json", "nope", "spin.db");
   const server = spawn("npx", ["next", "start", "-p", String(port)], {
-    env: { ...process.env, SQLITE_PATH: brokenDb },
+    env: { ...process.env, ...NO_SUPABASE, SQLITE_PATH: brokenDb },
     shell: true,
     stdio: "ignore",
   });

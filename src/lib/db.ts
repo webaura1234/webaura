@@ -166,13 +166,44 @@ class SqliteStore implements CouponStore {
 
 const globalForStore = globalThis as unknown as { __couponStore?: Promise<CouponStore> };
 
-async function createStore(): Promise<CouponStore> {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+/** Names from this project's .env.example first, then the ones Supabase's dashboard snippets use. */
+export function supabaseConfig(env: NodeJS.ProcessEnv = process.env): { url: string; key: string } | null {
+  const url = (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  const key = (env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || "").trim();
+  if (!url && !key) return null;
+  if (!url) throw new Error("Supabase key is set but SUPABASE_URL is missing.");
+  if (!key) {
+    throw new Error(
+      "SUPABASE_URL is set but SUPABASE_SERVICE_ROLE_KEY is missing. Use the service_role / secret key " +
+        "(Project Settings → API), not the anon/publishable key.",
+    );
+  }
+  if (isPublicKey(key)) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY holds the anon/publishable key. The coupons table blocks that key by design; " +
+        "use the service_role / secret key from Project Settings → API.",
+    );
+  }
+  return { url, key };
+}
 
-  if (url && key) {
+/** New-style publishable keys, or a legacy JWT whose role claim is "anon". */
+function isPublicKey(key: string): boolean {
+  if (key.startsWith("sb_publishable_")) return true;
+  const payload = key.split(".")[1];
+  if (!payload) return false;
+  try {
+    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"))?.role === "anon";
+  } catch {
+    return false;
+  }
+}
+
+async function createStore(): Promise<CouponStore> {
+  const supabase = supabaseConfig();
+  if (supabase) {
     return new SupabaseStore(
-      createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }),
+      createClient(supabase.url, supabase.key, { auth: { persistSession: false, autoRefreshToken: false } }),
     );
   }
   if (process.env.VERCEL) {

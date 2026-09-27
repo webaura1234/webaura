@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "db:check": "node scripts/check-supabase.mjs",
     "test": "vitest run",
     "test:e2e": "next build && playwright test"
   },
